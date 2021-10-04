@@ -12,6 +12,9 @@ import javax.swing.*;
 import java.io.*;
 import java.util.Arrays;
 
+/**
+ * Класс клиента
+ */
 public class CloudStorageClient {
 
     public static void main(String[] args) throws InterruptedException {
@@ -26,7 +29,7 @@ public class CloudStorageClient {
                     .channel(NioSocketChannel.class)
                     .handler(new ChannelInitializer<NioSocketChannel>() {
                         @Override
-                        protected void initChannel(NioSocketChannel ch) throws Exception {
+                        protected void initChannel(NioSocketChannel ch) {
                             ch.pipeline().addLast(
                                     new ByteArrayEncoder(),
 
@@ -46,19 +49,30 @@ public class CloudStorageClient {
         }
     }
 
+    /**
+     * Метод для отправки заданного файла в виде массива байт
+     *
+     * @param future установленное соединение с сервером
+     */
     private void sendFile(ChannelFuture future) throws InterruptedException {
+
+        // файл для отправки
         File historyFile = new File("history_l1.txt");
 
         if (historyFile.exists()) {
             try {
                 BufferedInputStream bis = new BufferedInputStream(new FileInputStream(historyFile));
+                // файл отправляется частями не более 512 байт
                 byte[] byteArray = new byte[512];
                 int in, i = 0;
-                while ((in = bis.read(byteArray)) != -1){
+                // в цикле читаем из файла пока есть данные
+                while ((in = bis.read(byteArray)) != -1) {
+                    // если блок данных меньше 512 байт пересоздаем массив, чтобы не отправлять лишние данные
                     if (in != byteArray.length) {
                         byteArray = Arrays.copyOf(byteArray, in);
                     }
                     System.out.println("Запись в файл №" + (i++) + " " + in);
+                    // отправляем блок данных на сервер
                     future.channel().writeAndFlush(byteArray).sync();
                 }
                 bis.close();
