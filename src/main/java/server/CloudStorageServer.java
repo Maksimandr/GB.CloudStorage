@@ -7,13 +7,12 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
-import io.netty.handler.codec.bytes.ByteArrayEncoder;
-import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 
+/**
+ * Класс сервера
+ */
 public class CloudStorageServer {
 
     public static void main(String[] args) throws InterruptedException {
@@ -30,11 +29,10 @@ public class CloudStorageServer {
                     .channel(NioServerSocketChannel.class)
                     .childHandler(new ChannelInitializer<NioSocketChannel>() {
                         @Override
-                        protected void initChannel(NioSocketChannel ch) throws Exception {
+                        protected void initChannel(NioSocketChannel ch) {
                             ch.pipeline().addLast(
                                     new StringEncoder(),
 
-//                                    new LengthFieldBasedFrameDecoder(516, 0, 4, 0, 4),
                                     new ByteArrayDecoder(),
                                     new ServerDecoder());
                         }
