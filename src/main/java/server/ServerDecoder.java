@@ -4,35 +4,26 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 
 /**
  * Декодер сервера для приема файла в виде массива байт
  */
-public class ServerDecoder extends SimpleChannelInboundHandler<byte[]> {
+public class ServerDecoder extends SimpleChannelInboundHandler<Request> {
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, byte[] bytes) {
-        try {
-            // создаем папку для приёма
-            File f = new File("Recieved");
-            if (!f.exists()) {
-                f.mkdir();
+    protected void channelRead0(ChannelHandlerContext ctx, Request request) {
+        RequestCommands command = request.getCommand();
+        if (command.equals(RequestCommands.CREATE_DIR)) {
+            File file = new File(CloudStorageServer.cloudDirectory + request.getFilename());
+            System.out.println(file.mkdirs());
+        } else if (command.equals(RequestCommands.CREATE_FILE)) {
+            try (RandomAccessFile accessFile = new RandomAccessFile(CloudStorageServer.cloudDirectory + request.getFilename(), "rw")) {
+                accessFile.seek(request.getPosition());
+                accessFile.write(request.getFile());
+            } catch (IOException e) {
+                System.out.println("Receive IO Error!");
             }
-            // создаем файл
-            f = new File("./Recieved/history.txt");
-            if (!f.exists()) {
-                f.createNewFile();
-            }
-            FileOutputStream fos = new FileOutputStream(f);
-            // записываем в файл порцию данных
-            fos.write(bytes, 0, bytes.length);
-
-            fos.flush();
-            fos.close();
-
-        } catch (IOException e) {
-            System.err.println("Receive IO Error!");
         }
     }
 
