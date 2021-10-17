@@ -8,6 +8,7 @@ public enum RequestCommands {
     CREATE_FILE,
     CREATE_DIR,
     DELETE_FILE,
-    DELETE_ALL
+    DELETE_ALL,
+    RECEIVE_ALL
 
 }

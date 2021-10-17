@@ -22,7 +22,7 @@ import java.io.File;
  */
 public class CloudStorageServer {
 
-    public static final File cloudDirectory = new File("cloudDirectory");
+    public static final File serverDirectory = new File("serverDirectory");
 
     public static void main(String[] args) throws InterruptedException {
         new CloudStorageServer().start();
@@ -32,6 +32,7 @@ public class CloudStorageServer {
         NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
         NioEventLoopGroup workerGroup = new NioEventLoopGroup();
 
+        RequestDecoder requestDecoder = new RequestDecoder(serverDirectory);
         try {
             ServerBootstrap server = new ServerBootstrap();
             server
@@ -41,7 +42,7 @@ public class CloudStorageServer {
                         @Override
                         protected void initChannel(NioSocketChannel ch) {
                             ch.pipeline().addLast(
-                                    new LengthFieldBasedFrameDecoder(1024 * 1024,
+                                    new LengthFieldBasedFrameDecoder(1024 * 1024 * 1024,
                                             0,
                                             8,
                                             0,
@@ -51,7 +52,7 @@ public class CloudStorageServer {
                                     new ByteArrayDecoder(),
                                     new JsonEncoder(),
                                     new JsonDecoder(),
-                                    new RequestDecoder());
+                                    requestDecoder);
                         }
                     })
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
