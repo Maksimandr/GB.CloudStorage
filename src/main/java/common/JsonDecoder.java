@@ -1,4 +1,4 @@
-package client;
+package common;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.channel.ChannelHandlerContext;
@@ -11,9 +11,8 @@ public class JsonDecoder extends MessageToMessageDecoder<byte[]> {
 
     @Override
     protected void decode(ChannelHandlerContext ctx, byte[] msg, List<Object> out) throws Exception {
-        System.out.println("received " + msg.length);
-        Response response = om.readValue(msg, Response.class);
-        out.add(response);
+        Request request = om.readValue(msg, Request.class);
+        out.add(request);
     }
 
     @Override

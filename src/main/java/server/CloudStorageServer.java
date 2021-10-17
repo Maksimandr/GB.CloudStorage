@@ -1,5 +1,8 @@
 package server;
 
+import common.JsonDecoder;
+import common.JsonEncoder;
+import common.RequestDecoder;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -12,12 +15,14 @@ import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 import io.netty.handler.codec.bytes.ByteArrayEncoder;
 
+import java.io.File;
+
 /**
  * Класс сервера
  */
 public class CloudStorageServer {
 
-    public static final String cloudDirectory = "cloudDirectory/";
+    public static final File cloudDirectory = new File("cloudDirectory");
 
     public static void main(String[] args) throws InterruptedException {
         new CloudStorageServer().start();
@@ -46,7 +51,7 @@ public class CloudStorageServer {
                                     new ByteArrayDecoder(),
                                     new JsonEncoder(),
                                     new JsonDecoder(),
-                                    new ServerDecoder());
+                                    new RequestDecoder());
                         }
                     })
                     .childOption(ChannelOption.SO_KEEPALIVE, true);

@@ -1,5 +1,6 @@
 package client;
 
+import common.*;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -10,21 +11,25 @@ import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 import io.netty.handler.codec.bytes.ByteArrayEncoder;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.RandomAccessFile;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 /**
  * Класс клиента
  */
 public class CloudStorageClient {
 
-    public static final String localDirectory = "localDirectory/";
+    private static final File localDirectory = new File("localDirectory");
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, IOException {
         new CloudStorageClient().start();
     }
 
-    public void start() throws InterruptedException {
+    public void start() throws InterruptedException, IOException {
         NioEventLoopGroup group = new NioEventLoopGroup();
         try {
             Bootstrap client = new Bootstrap();
@@ -51,21 +56,67 @@ public class CloudStorageClient {
 
             System.out.println("Client started");
 
-            sendRequest(channelFuture, "test.t/", RequestCommands.CREATE_DIR);
-            sendRequest(channelFuture, "test.txt/", RequestCommands.CREATE_FILE);
+            // отсылаем всё дерево директорий и файлов на сервер
+            sendAllFiles(channelFuture);
+
+            // через 5 сек отправляем запрос на их удаление
+            Thread.sleep(5000);
+            deleteAllFiles(channelFuture);
+
         } finally {
             group.shutdownGracefully();
         }
     }
 
-    private void sendRequest(ChannelFuture channelFuture, String fileName, RequestCommands command) throws InterruptedException {
-        if (command.equals(RequestCommands.CREATE_DIR)) {
-            createDir(channelFuture, fileName);
-        } else if (command.equals(RequestCommands.CREATE_FILE)) {
-            createFile(channelFuture, fileName);
+    /**
+     * Отсылает запрос на удаление всех файлов на сервере
+     * @param channelFuture
+     * @throws InterruptedException
+     */
+    private void deleteAllFiles(ChannelFuture channelFuture) throws InterruptedException {
+        Request request = new Request();
+        request.setFilename("");
+        request.setCommand(RequestCommands.DELETE_ALL);
+        channelFuture.channel().writeAndFlush(request).sync();
+    }
+
+    /**
+     * Отсылает серию запросов содержащих все файлы в локальной папке клиента
+     * @param channelFuture
+     * @throws InterruptedException
+     * @throws IOException
+     */
+    private void sendAllFiles(ChannelFuture channelFuture) throws InterruptedException, IOException {
+        List<File> fileList = new ArrayList<>(RequestDecoder.getDirTree(localDirectory));
+        fileList.remove(0);
+        for (File f : fileList) {
+            if (f.isFile()) {
+                createFile(channelFuture, f.getCanonicalPath().substring(localDirectory.getCanonicalPath().length()));
+            } else {
+                createDir(channelFuture, f.getCanonicalPath().substring(localDirectory.getCanonicalPath().length()));
+            }
         }
     }
 
+    /**
+     * Отсылает запрос на удаление указанного файла на сервере
+     * @param channelFuture
+     * @param fileName
+     * @throws InterruptedException
+     */
+    private void deleteFile(ChannelFuture channelFuture, String fileName) throws InterruptedException {
+        Request request = new Request();
+        request.setFilename(fileName);
+        request.setCommand(RequestCommands.DELETE_FILE);
+        channelFuture.channel().writeAndFlush(request).sync();
+    }
+
+    /**
+     * Отсылает запрос на создание директории на сервере
+     * @param channelFuture
+     * @param fileName
+     * @throws InterruptedException
+     */
     private void createDir(ChannelFuture channelFuture, String fileName) throws InterruptedException {
         Request request = new Request();
         request.setFilename(fileName);

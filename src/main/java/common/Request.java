@@ -1,7 +1,8 @@
-package server;
+package common;
 
-public class Response {
+public class Request {
     private String filename;
+    private RequestCommands command;
     private long position;
     private byte[] file;
 
@@ -11,6 +12,14 @@ public class Response {
 
     public void setFilename(String filename) {
         this.filename = filename;
+    }
+
+    public RequestCommands getCommand() {
+        return command;
+    }
+
+    public void setCommand(RequestCommands command) {
+        this.command = command;
     }
 
     public long getPosition() {

@@ -1,4 +1,4 @@
-package client;
+package common;
 
 public class Response {
     private String filename;
