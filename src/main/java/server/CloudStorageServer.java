@@ -32,7 +32,6 @@ public class CloudStorageServer {
         NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
         NioEventLoopGroup workerGroup = new NioEventLoopGroup();
 
-        RequestDecoder requestDecoder = new RequestDecoder(serverDirectory);
         try {
             ServerBootstrap server = new ServerBootstrap();
             server
@@ -52,7 +51,7 @@ public class CloudStorageServer {
                                     new ByteArrayDecoder(),
                                     new JsonEncoder(),
                                     new JsonDecoder(),
-                                    requestDecoder);
+                                    new RequestDecoder(serverDirectory));
                         }
                     })
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
