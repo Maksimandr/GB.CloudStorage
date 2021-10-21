@@ -7,10 +7,7 @@ import io.netty.channel.ChannelHandlerContext;
 import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * Класс содержит методы для работы с запросами
@@ -69,18 +66,9 @@ public class RequestMethods {
      * @param fileList список файлов
      */
     public static void deleteFiles(List<File> fileList) throws IOException {
-        List<String> dirList = new ArrayList<>();
+        fileList.sort(Comparator.reverseOrder());
         for (File f : fileList) {
-            if (f.isFile()) {
-                new File(f.getCanonicalPath()).delete();
-            } else {
-                dirList.add(f.getCanonicalPath());
-            }
-        }
-        dirList.sort(Collections.reverseOrder());
-
-        for (String f : dirList) {
-            new File(f).delete();
+            new File(f.getCanonicalPath()).delete();//
         }
     }
 
