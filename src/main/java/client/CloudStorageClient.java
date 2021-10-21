@@ -28,6 +28,7 @@ public class CloudStorageClient {
 
     public void start() throws InterruptedException, IOException {
         NioEventLoopGroup group = new NioEventLoopGroup();
+        Scanner scanner = new Scanner(System.in);
 
         try {
             Bootstrap client = new Bootstrap();
@@ -62,7 +63,7 @@ public class CloudStorageClient {
             System.out.println("dir имя_директории - создает указанную директорию на удаленной стороне");
             System.out.println("file имя_файла - отправляет указанный файл на удаленной стороне");
 
-            Scanner scanner = new Scanner(System.in);
+
             String input;
 
             while (true) {
@@ -100,6 +101,7 @@ public class CloudStorageClient {
             }
         } finally {
             group.shutdownGracefully();
+            scanner.close();
         }
     }
 }
