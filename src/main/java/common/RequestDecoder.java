@@ -10,7 +10,7 @@ import java.io.RandomAccessFile;
 /**
  * Декодер сервера для приема файла в виде массива байт
  */
-public class RequestDecoder extends SimpleChannelInboundHandler<Request> {
+public class RequestDecoder extends SimpleChannelInboundHandler<Object> {
 
     private File localDir;
 
@@ -19,7 +19,8 @@ public class RequestDecoder extends SimpleChannelInboundHandler<Request> {
     }
 
     @Override
-    protected void channelRead0(ChannelHandlerContext ctx, Request request) throws IOException {
+    protected void channelRead0(ChannelHandlerContext ctx, Object o) throws IOException {
+        Request request = (Request) o;
         RequestCommands command = request.getCommand();
         File file = new File(localDir.getCanonicalPath() + File.separator + request.getFilename());
 

@@ -14,6 +14,10 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 import io.netty.handler.codec.bytes.ByteArrayEncoder;
+import io.netty.handler.codec.serialization.ClassResolver;
+import io.netty.handler.codec.serialization.ClassResolvers;
+import io.netty.handler.codec.serialization.ObjectDecoder;
+import io.netty.handler.codec.serialization.ObjectEncoder;
 
 import java.io.File;
 
@@ -41,16 +45,17 @@ public class CloudStorageServer {
                         @Override
                         protected void initChannel(NioSocketChannel ch) {
                             ch.pipeline().addLast(
-                                    new LengthFieldBasedFrameDecoder(1024 * 1024 * 1024,
+                                    new LengthFieldBasedFrameDecoder(
+                                            1024 * 1024 * 1024,
                                             0,
                                             8,
                                             0,
                                             8),
                                     new LengthFieldPrepender(8),
-                                    new ByteArrayEncoder(),
                                     new ByteArrayDecoder(),
-                                    new JsonEncoder(),
+                                    new ByteArrayEncoder(),
                                     new JsonDecoder(),
+                                    new JsonEncoder(),
                                     new RequestDecoder(serverDirectory));
                         }
                     })

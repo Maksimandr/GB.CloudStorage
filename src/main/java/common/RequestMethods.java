@@ -50,6 +50,21 @@ public class RequestMethods {
     }
 
     /**
+     * Возвращает часть пути до файла без начальной части
+     * @param file обрабатываемый файл
+     * @param localDir убираемая часть
+     * @return строка пути до файла без начальной части
+     */
+    public static String subPath(File file, File localDir) {
+        try {
+            return file.getCanonicalPath().substring(localDir.getCanonicalPath().length());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return "";
+    }
+
+    /**
      * Очищает указанную папку
      *
      * @param localDir локальная директория для хранения файлов

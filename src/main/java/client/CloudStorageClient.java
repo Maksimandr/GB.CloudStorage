@@ -2,6 +2,7 @@ package client;
 
 import common.*;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -10,12 +11,18 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
 import io.netty.handler.codec.bytes.ByteArrayEncoder;
+import io.netty.handler.codec.serialization.ClassResolvers;
+import io.netty.handler.codec.serialization.ObjectDecoder;
+import io.netty.handler.codec.serialization.ObjectEncoder;
 import org.apache.commons.io.monitor.FileAlterationListener;
 import org.apache.commons.io.monitor.FileAlterationMonitor;
 import org.apache.commons.io.monitor.FileAlterationObserver;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Scanner;
+
+import static common.RequestMethods.*;
 
 /**
  * Класс клиента
@@ -24,11 +31,11 @@ public class CloudStorageClient {
 
     private static final File clientDirectory = new File("clientDirectory");
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         new CloudStorageClient().start();
     }
 
-    public void start() throws Exception {
+    public void start() {
         NioEventLoopGroup group = new NioEventLoopGroup();
         Scanner scanner = new Scanner(System.in);
 
@@ -40,16 +47,17 @@ public class CloudStorageClient {
                         @Override
                         protected void initChannel(NioSocketChannel ch) {
                             ch.pipeline().addLast(
-                                    new LengthFieldBasedFrameDecoder(1024 * 1024 * 1024,
+                                    new LengthFieldBasedFrameDecoder(
+                                            1024 * 1024 * 1024,
                                             0,
                                             8,
                                             0,
                                             8),
                                     new LengthFieldPrepender(8),
-                                    new ByteArrayEncoder(),
                                     new ByteArrayDecoder(),
-                                    new JsonEncoder(),
+                                    new ByteArrayEncoder(),
                                     new JsonDecoder(),
+                                    new JsonEncoder(),
                                     new RequestDecoder(clientDirectory));
                         }
                     });
@@ -57,8 +65,8 @@ public class CloudStorageClient {
             ChannelFuture channelFuture = client.connect("localhost", 9000).sync();
             System.out.println("Client started");
 
-            FileAlterationObserver observer = new FileAlterationObserver("/Users/a17081740/watch");
             FileAlterationMonitor monitor = new FileAlterationMonitor(1000);
+            FileAlterationObserver observer = new FileAlterationObserver(clientDirectory);
             FileAlterationListener listener = new FileAlterationListener() {
                 @Override
                 public void onStart(FileAlterationObserver observer) {
@@ -67,32 +75,61 @@ public class CloudStorageClient {
 
                 @Override
                 public void onDirectoryCreate(File directory) {
-
+                    try {
+                        rqCreateDir(channelFuture, subPath(directory, clientDirectory));
+                        System.out.println("Created Directory: " + directory.getName() + " path:" + directory.getCanonicalPath());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 @Override
                 public void onDirectoryChange(File directory) {
-
+                    try {
+                        System.out.println("Changes in Directory: " + directory.getName() + " path:" + directory.getCanonicalPath());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 @Override
                 public void onDirectoryDelete(File directory) {
-
+                    try {
+                        rqDeleteFile(channelFuture, subPath(directory, clientDirectory));
+                        System.out.println("Delete Directory: " + directory.getName() + " path:" + directory.getCanonicalPath());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 @Override
                 public void onFileCreate(File file) {
-                    System.out.println("Created Filename: " + file.getName() + " path:" + file.getAbsolutePath());
+                    try {
+                        rqSendFile(channelFuture, subPath(file, clientDirectory), clientDirectory);
+                        System.out.println("Created File: " + file.getName() + " path:" + file.getCanonicalPath());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 @Override
                 public void onFileChange(File file) {
-                    System.out.println("Change Filename: " + file.getName() + " path:" + file.getAbsolutePath());
+                    try {
+                        rqSendFile(channelFuture, subPath(file, clientDirectory), clientDirectory);
+                        System.out.println("Change File: " + file.getName() + " path:" + file.getCanonicalPath());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 @Override
                 public void onFileDelete(File file) {
-                    System.out.println("Delete Filename: " + file.getName() + " path:" + file.getAbsolutePath());
+                    try {
+                        rqDeleteFile(channelFuture, subPath(file, clientDirectory));
+                        System.out.println("Delete File: " + file.getName() + " path:" + file.getCanonicalPath());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
                 @Override
@@ -103,7 +140,10 @@ public class CloudStorageClient {
 
             observer.addListener(listener);
             monitor.addObserver(observer);
-            monitor.start();
+
+
+            Auth auth = new Auth("l1", "p1");
+            channelFuture.channel().writeAndFlush(auth);
 
             System.out.println("Команды для работы:");
             System.out.println("all del - удаляет все файлы на удаленной стороне");
@@ -112,7 +152,8 @@ public class CloudStorageClient {
             System.out.println("del имя_файла - удаляет указанный файл/директорию с удаленной стороны");
             System.out.println("dir имя_директории - создает указанную директорию на удаленной стороне");
             System.out.println("file имя_файла - отправляет указанный файл на удаленной стороне");
-
+            System.out.println("auto on - запуск автоматического режима отслеживания изменений в директории");
+            System.out.println("auto off - остановка автоматического режима отслеживания изменений в директории");
 
             String input;
 
@@ -125,33 +166,57 @@ public class CloudStorageClient {
 
                 } else if (input.equalsIgnoreCase("all del")) {
                     // очищаем папку на сервере
-                    RequestMethods.rqDeleteAllFiles(channelFuture);
+                    rqDeleteAllFiles(channelFuture);
                 } else if (input.equalsIgnoreCase("all send")) {
                     // отсылаем всё дерево директорий и файлов на сервер
-                    RequestMethods.rqSendAllFiles(channelFuture, clientDirectory);
+                    rqSendAllFiles(channelFuture, clientDirectory);
                 } else if (input.equalsIgnoreCase("all rec")) {
                     // получаем всё дерево директорий и файлов от сервера
-                    RequestMethods.rqReceiveAllFiles(channelFuture);
+                    rqReceiveAllFiles(channelFuture);
+                } else if (input.equalsIgnoreCase("auto on")) {
+                    // запуск автоматического режима отслеживания изменений
+                    try {
+                        monitor.start();
+                        System.out.println("Запущен автоматический режим отслеживания изменений в директории");
+                    } catch (Exception e) {
+                        System.out.println("Мониторинг изменений в директории уже запущен!");
+                    }
+                } else if (input.equalsIgnoreCase("auto off")) {
+                    // остановка автоматического режима отслеживания изменений
+                    try {
+                        monitor.stop();
+                        System.out.println("Остановлен автоматический режим отслеживания изменений в директории");
+                    } catch (Exception e) {
+                        System.out.println("Мониторинг изменений в директории уже остановлен!");
+                    }
                 } else {
 
                     String[] strings = input.split(" ");
                     if (strings.length > 1) {
                         if (strings[0].equals("del")) {
                             // удаляем файл
-                            RequestMethods.rqDeleteFile(channelFuture, strings[1]);
+                            rqDeleteFile(channelFuture, strings[1]);
                         } else if (strings[0].equals("dir")) {
                             // создаем каталог
-                            RequestMethods.rqCreateDir(channelFuture, strings[1]);
+                            rqCreateDir(channelFuture, strings[1]);
                         } else if (strings[0].equals("file")) {
                             // отправляем файл
-                            RequestMethods.rqSendFile(channelFuture, strings[1], clientDirectory);
+                            rqSendFile(channelFuture, strings[1], clientDirectory);
                         }
                     }
                 }
             }
+            try {
+                monitor.stop();
+            } catch (Exception ignored) {
+            }
+
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
         } finally {
             group.shutdownGracefully();
             scanner.close();
+
         }
     }
 }
