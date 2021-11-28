@@ -9,10 +9,12 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.*;
 
+import static common.MessageCommands.*;
+
 /**
  * Класс содержит методы для работы с запросами
  */
-public class RequestMethods {
+public class MyMessageMethods {
 
     /**
      * Извлекает канал соединения из объекта
@@ -42,7 +44,7 @@ public class RequestMethods {
         List<File> fileList = new ArrayList<>();
         fileList.add(file);
         if (!file.isFile()) {
-            for (File f : file.listFiles()) {
+            for (File f : Objects.requireNonNull(file.listFiles())) {
                 fileList.addAll(getDirTree(f));
             }
         }
@@ -51,7 +53,8 @@ public class RequestMethods {
 
     /**
      * Возвращает часть пути до файла без начальной части
-     * @param file обрабатываемый файл
+     *
+     * @param file     обрабатываемый файл
      * @param localDir убираемая часть
      * @return строка пути до файла без начальной части
      */
@@ -69,10 +72,10 @@ public class RequestMethods {
      *
      * @param localDir локальная директория для хранения файлов
      */
-    public static void clearDir(File localDir) throws IOException {
+    public static boolean clearDir(File localDir) throws IOException {
         List<File> fileList = new ArrayList<>(getDirTree(localDir));
         fileList.remove(0);
-        deleteFiles(fileList);
+        return deleteFiles(fileList);
     }
 
     /**
@@ -80,30 +83,26 @@ public class RequestMethods {
      *
      * @param fileList список файлов
      */
-    public static void deleteFiles(List<File> fileList) throws IOException {
+    public static boolean deleteFiles(List<File> fileList) throws IOException {
+        boolean flag = true;
         fileList.sort(Comparator.reverseOrder());
         for (File f : fileList) {
-            new File(f.getCanonicalPath()).delete();//
+            flag = flag && new File(f.getCanonicalPath()).delete();//
         }
+        return flag;
     }
 
     /**
      * Отсылает серию запросов содержащих все файлы в локальной папке
      *
-     * @param o        объект содержащий соединение
-     * @param localDir локальная директория для хранения файлов
+     * @param o объект содержащий соединение
      */
-    public static void rqSendAllFiles(Object o, File localDir) throws IOException {
+    public static void rqSendAllFiles(Object o) throws IOException {
         Channel ctx = channelCheck(o);
-        List<File> fileList = new ArrayList<>(getDirTree(localDir));
-        fileList.remove(0);
-        for (File f : fileList) {
-            if (f.isFile()) {
-                rqSendFile(ctx, f.getCanonicalPath().substring(localDir.getCanonicalPath().length()), localDir);
-            } else {
-                rqCreateDir(ctx, f.getCanonicalPath().substring(localDir.getCanonicalPath().length()));
-            }
-        }
+        Request request = new Request();
+        request.setFilename("");
+        request.setCommand(SEND_ALL);
+        ctx.writeAndFlush(request);
     }
 
     /**
@@ -111,11 +110,11 @@ public class RequestMethods {
      *
      * @param o объект содержащий соединение
      */
-    public static void rqReceiveAllFiles(Object o) {
+    public static void rqLoadAllFiles(Object o) {
         Channel ctx = channelCheck(o);
         Request request = new Request();
         request.setFilename("");
-        request.setCommand(RequestCommands.RECEIVE_ALL);
+        request.setCommand(LOAD_ALL);
         ctx.writeAndFlush(request);
     }
 
@@ -128,7 +127,7 @@ public class RequestMethods {
         Channel ctx = channelCheck(o);
         Request request = new Request();
         request.setFilename("");
-        request.setCommand(RequestCommands.DELETE_ALL);
+        request.setCommand(DELETE_ALL);
         ctx.writeAndFlush(request);
     }
 
@@ -143,7 +142,7 @@ public class RequestMethods {
         Channel ctx = channelCheck(o);
         Request request = new Request();
         request.setFilename(fileName);
-        request.setCommand(RequestCommands.DELETE_FILE);
+        request.setCommand(DELETE_FILE);
         ctx.writeAndFlush(request);
     }
 
@@ -157,7 +156,21 @@ public class RequestMethods {
         Channel ctx = channelCheck(o);
         Request request = new Request();
         request.setFilename(fileName);
-        request.setCommand(RequestCommands.CREATE_DIR);
+        request.setCommand(CREATE_DIR);
+        ctx.writeAndFlush(request);
+    }
+
+    /**
+     * Отсылает запрос на загрузку файла с удаленной стороны
+     *
+     * @param o        объект содержащий соединение
+     * @param fileName имя файла
+     */
+    public static void rqLoadFile(Object o, String fileName) {
+        Channel ctx = channelCheck(o);
+        Request request = new Request();
+        request.setFilename(fileName);
+        request.setCommand(LOAD_FILE);
         ctx.writeAndFlush(request);
     }
 
@@ -168,31 +181,27 @@ public class RequestMethods {
      * @param fileName имя файла
      * @param localDir локальная директория для хранения файлов
      */
-    public static void rqSendFile(Object o, String fileName, File localDir) {
+    public static void rqSendFile(Object o, String fileName, File localDir, long position, MessageCommands command) {
         Channel ctx = channelCheck(o);
         try (RandomAccessFile accessFile = new RandomAccessFile(localDir.getCanonicalPath() + File.separator + fileName, "rw")) {
             // файл отправляется частями
-            Request request;
-            byte[] buffer;
-            int read;
-            // в цикле читаем из файла пока есть данные
-            while (true) {
-                buffer = new byte[1024 * 1024];
-                request = new Request();
-                request.setFilename(fileName);
-                request.setCommand(RequestCommands.CREATE_FILE);
-                request.setPosition(accessFile.getFilePointer());
-                read = accessFile.read(buffer);
-                if (read < buffer.length - 1) {
-                    // если блок данных меньше заданного пересоздаем массив, чтобы не отправлять лишние данные
+            byte[] buffer = new byte[1024 * 1024];
+            Request request = new Request();
+            request.setFilename(fileName);
+            request.setCommand(command);
+            request.setPosition(position);
+            accessFile.seek(position);
+            int read = accessFile.read(buffer);
+            if (read < buffer.length - 1) {
+                // если блок данных меньше заданного пересоздаем массив, чтобы не отправлять лишние данные
+                if (read > 0) {
                     buffer = Arrays.copyOf(buffer, read);
                     request.setFile(buffer);
-                    ctx.writeAndFlush(request);
-                    break;
-                } else {
-                    request.setFile(buffer);
-                    ctx.writeAndFlush(request);
                 }
+                ctx.writeAndFlush(request);
+            } else {
+                request.setFile(buffer);
+                ctx.writeAndFlush(request);
             }
         } catch (IOException e) {
             e.printStackTrace();

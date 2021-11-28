@@ -1,8 +1,11 @@
 package common;
 
-public class Request {
+import java.io.Serializable;
+
+public class Request implements Serializable {
     private String filename;
-    private RequestCommands command;
+    private MessageCommands command;
+    private MessageCommands status;
     private long position;
     private byte[] file;
 
@@ -14,12 +17,20 @@ public class Request {
         this.filename = filename;
     }
 
-    public RequestCommands getCommand() {
+    public MessageCommands getCommand() {
         return command;
     }
 
-    public void setCommand(RequestCommands command) {
+    public void setCommand(MessageCommands command) {
         this.command = command;
+    }
+
+    public MessageCommands getStatus() {
+        return status;
+    }
+
+    public void setStatus(MessageCommands status) {
+        this.status = status;
     }
 
     public long getPosition() {

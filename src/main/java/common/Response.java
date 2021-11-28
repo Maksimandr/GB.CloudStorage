@@ -1,9 +1,12 @@
 package common;
 
-public class Response {
+import java.io.Serializable;
+
+public class Response implements Serializable {
     private String filename;
+    private MessageCommands command;
+    private MessageCommands status;
     private long position;
-    private byte[] file;
 
     public String getFilename() {
         return filename;
@@ -13,19 +16,27 @@ public class Response {
         this.filename = filename;
     }
 
+    public MessageCommands getCommand() {
+        return command;
+    }
+
+    public void setCommand(MessageCommands command) {
+        this.command = command;
+    }
+
+    public MessageCommands getStatus() {
+        return status;
+    }
+
+    public void setStatus(MessageCommands status) {
+        this.status = status;
+    }
+
     public long getPosition() {
         return position;
     }
 
     public void setPosition(long position) {
         this.position = position;
-    }
-
-    public byte[] getFile() {
-        return file;
-    }
-
-    public void setFile(byte[] file) {
-        this.file = file;
     }
 }

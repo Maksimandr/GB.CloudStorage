@@ -1,8 +1,6 @@
 package server;
 
-import common.JsonDecoder;
-import common.JsonEncoder;
-import common.RequestDecoder;
+import common.MyMessageDecoder;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -10,11 +8,6 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.codec.LengthFieldPrepender;
-import io.netty.handler.codec.bytes.ByteArrayDecoder;
-import io.netty.handler.codec.bytes.ByteArrayEncoder;
-import io.netty.handler.codec.serialization.ClassResolver;
 import io.netty.handler.codec.serialization.ClassResolvers;
 import io.netty.handler.codec.serialization.ObjectDecoder;
 import io.netty.handler.codec.serialization.ObjectEncoder;
@@ -45,18 +38,9 @@ public class CloudStorageServer {
                         @Override
                         protected void initChannel(NioSocketChannel ch) {
                             ch.pipeline().addLast(
-                                    new LengthFieldBasedFrameDecoder(
-                                            1024 * 1024 * 1024,
-                                            0,
-                                            8,
-                                            0,
-                                            8),
-                                    new LengthFieldPrepender(8),
-                                    new ByteArrayDecoder(),
-                                    new ByteArrayEncoder(),
-                                    new JsonDecoder(),
-                                    new JsonEncoder(),
-                                    new RequestDecoder(serverDirectory));
+                                    new ObjectEncoder(),
+                                    new ObjectDecoder(1024 * 1024 + 2048, ClassResolvers.cacheDisabled(null)), // размер указан исходя из того, что размер данных в request = 1024 * 1024
+                                    new MyMessageDecoder(serverDirectory));
                         }
                     })
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
