@@ -1,5 +1,8 @@
 package server;
 
+import common.JsonDecoder;
+import common.JsonEncoder;
+import common.RequestDecoder;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -7,13 +10,19 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.codec.bytes.ByteArrayDecoder;
-import io.netty.handler.codec.string.StringEncoder;
+import io.netty.handler.codec.bytes.ByteArrayEncoder;
+
+import java.io.File;
 
 /**
  * Класс сервера
  */
 public class CloudStorageServer {
+
+    public static final File serverDirectory = new File("serverDirectory");
 
     public static void main(String[] args) throws InterruptedException {
         new CloudStorageServer().start();
@@ -22,6 +31,7 @@ public class CloudStorageServer {
     public void start() throws InterruptedException {
         NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
         NioEventLoopGroup workerGroup = new NioEventLoopGroup();
+
         try {
             ServerBootstrap server = new ServerBootstrap();
             server
@@ -31,17 +41,24 @@ public class CloudStorageServer {
                         @Override
                         protected void initChannel(NioSocketChannel ch) {
                             ch.pipeline().addLast(
-                                    new StringEncoder(),
-
+                                    new LengthFieldBasedFrameDecoder(1024 * 1024 * 1024,
+                                            0,
+                                            8,
+                                            0,
+                                            8),
+                                    new LengthFieldPrepender(8),
+                                    new ByteArrayEncoder(),
                                     new ByteArrayDecoder(),
-                                    new ServerDecoder());
+                                    new JsonEncoder(),
+                                    new JsonDecoder(),
+                                    new RequestDecoder(serverDirectory));
                         }
                     })
                     .childOption(ChannelOption.SO_KEEPALIVE, true);
 
-            ChannelFuture sync = server.bind(9000).sync();
-            sync.channel().closeFuture().sync();
-
+            ChannelFuture channelFuture = server.bind(9000).sync();
+            System.out.println("Server started");
+            channelFuture.channel().closeFuture().sync();
         } finally {
             bossGroup.shutdownGracefully();
             workerGroup.shutdownGracefully();
